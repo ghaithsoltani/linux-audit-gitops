@@ -56,3 +56,10 @@ docker compose up -d
 
 Ghaith — DevOps Engineering Portfolio
 GitHub: https://github.com/ghaithsoltani
+9. Health check verification
+10. Auto-rollback on failure
+
+## Author
+
+Ghaith — DevOps Engineering Portfolio
+GitHub: https://github.com/ghaithsoltani
