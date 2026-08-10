@@ -103,6 +103,16 @@ if [[ -n "${STAGED_FILES}" ]]; then
             continue
         fi
 
+        # Skip hook files themselves - contain pattern strings for detection
+        if echo "${file}" | grep -qE "^\.githooks/"; then
+            continue
+        fi
+
+        # Skip the hook files themselves - they contain pattern strings
+        if echo "${file}" | grep -qE "^\.githooks/"; then
+            continue
+        fi
+
         for pattern in "${SECRET_PATTERNS[@]}"; do
             if git diff --cached "${file}" | grep -iE "${pattern}" &>/dev/null; then
                 echo -e "  ${RED}❌ Possible secret in ${file}: pattern '${pattern}'${NC}"
