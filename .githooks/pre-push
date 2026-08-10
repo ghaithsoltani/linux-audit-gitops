@@ -1,0 +1,48 @@
+#!/bin/bash
+# .githooks/pre-push
+# Purpose: Prevent direct pushes to main/master branch
+# Why: All changes to main must go through Pull Requests
+#      This enforces code review and CI validation
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Get current branch name
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Protected branches - direct push blocked
+PROTECTED_BRANCHES=("main" "master" "production" "release")
+
+echo -e "${CYAN}🔍 Pre-push check — branch protection${NC}"
+
+for protected in "${PROTECTED_BRANCHES[@]}"; do
+    if [[ "${BRANCH}" == "${protected}" ]]; then
+        echo ""
+        echo -e "${RED}❌ Direct push to '${BRANCH}' is NOT allowed${NC}"
+        echo ""
+        echo -e "${YELLOW}Why?${NC} All changes to ${BRANCH} must go through a Pull Request."
+        echo -e "${YELLOW}This ensures:${NC}"
+        echo "  • Code review by at least one other engineer"
+        echo "  • CI pipeline runs and passes"
+        echo "  • Audit trail of every change"
+        echo ""
+        echo -e "${YELLOW}What to do instead:${NC}"
+        echo "  1. Create a feature branch:"
+        echo "     git checkout -b feat/your-feature-name"
+        echo "  2. Push your feature branch:"
+        echo "     git push origin feat/your-feature-name"
+        echo "  3. Open a Pull Request on GitHub"
+        echo ""
+        echo -e "${YELLOW}To bypass (emergency only):${NC}"
+        echo "  git push --no-verify origin ${BRANCH}"
+        echo ""
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}✅ Branch '${BRANCH}' — push allowed${NC}"
+exit 0
