@@ -1,0 +1,70 @@
+#!/bin/bash
+# .githooks/commit-msg
+# Purpose: Enforce Conventional Commits format
+# Format: type(optional-scope): description
+# Types: feat fix docs style refactor test chore ci perf build revert
+# Example: feat(auth): add JWT token refresh
+# Example: fix: resolve null pointer in deploy script
+# Example: ci: add secret scanning to pipeline
+
+# Read the commit message
+COMMIT_MSG=$(cat "$1")
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Conventional commit pattern
+# type(scope): description
+# OR
+# type: description
+PATTERN="^(feat|fix|docs|style|refactor|test|chore|ci|perf|build|revert)(\(.+\))?: .{1,100}$"
+
+# Allow merge commits
+if echo "${COMMIT_MSG}" | grep -qE "^Merge "; then
+    exit 0
+fi
+
+# Allow revert commits
+if echo "${COMMIT_MSG}" | grep -qE "^Revert "; then
+    exit 0
+fi
+
+# Validate the first line
+FIRST_LINE=$(echo "${COMMIT_MSG}" | head -1)
+
+if echo "${FIRST_LINE}" | grep -qE "${PATTERN}"; then
+    echo -e "${GREEN}✅ Commit message format valid${NC}"
+    exit 0
+else
+    echo ""
+    echo -e "${RED}❌ Invalid commit message format${NC}"
+    echo ""
+    echo -e "${YELLOW}Your message:${NC} ${FIRST_LINE}"
+    echo ""
+    echo -e "${YELLOW}Required format:${NC} type(scope): description"
+    echo -e "${YELLOW}           OR:${NC} type: description"
+    echo ""
+    echo -e "${YELLOW}Valid types:${NC}"
+    echo "  feat     — new feature"
+    echo "  fix      — bug fix"
+    echo "  docs     — documentation only"
+    echo "  style    — formatting, no logic change"
+    echo "  refactor — code restructure, no feature/fix"
+    echo "  test     — adding tests"
+    echo "  chore    — maintenance tasks"
+    echo "  ci       — CI/CD pipeline changes"
+    echo "  perf     — performance improvements"
+    echo "  build    — build system changes"
+    echo "  revert   — reverting a commit"
+    echo ""
+    echo -e "${YELLOW}Examples:${NC}"
+    echo "  feat(deploy): add automatic rollback on health check failure"
+    echo "  fix: correct SSH key permissions in deploy script"
+    echo "  ci: add gitleaks secret scanning to CI pipeline"
+    echo "  docs: update README with deployment instructions"
+    echo ""
+    exit 1
+fi
