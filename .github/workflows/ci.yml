@@ -152,26 +152,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./app
-          dockerfile: ./app/Dockerfile
-          target: production
-          # push: false means build only, no push to registry
-          push: false
-          tags: gitops-nginx:ci-test
-          # Cache layers between runs for speed
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Verify image was built
         run: |
-          docker images gitops-nginx:ci-test
+          echo "Building Docker image..."
+          docker build \
+            --target production \
+            --tag gitops-nginx:ci-test \
+            ./app
+          echo ""
           echo "✅ Docker image built successfully"
+          docker images gitops-nginx:ci-test
 
   # ---------------------------------------------------------------------------
   # JOB 5 — CI Summary
