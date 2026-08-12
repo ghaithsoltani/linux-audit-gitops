@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitOps Pipeline — DevOps Lab</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { max-width: 800px; padding: 2rem; text-align: center; }
+        h1 { font-size: 2.5rem; color: #58a6ff; margin-bottom: 1rem; }
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 0.3rem;
+            font-weight: bold;
+            background: #1f6feb;
+            color: white;
+        }
+        .info {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            text-align: left;
+        }
+        .info h2 { color: #58a6ff; margin-bottom: 1rem; font-size: 1.1rem; }
+        .info p { margin: 0.4rem 0; font-size: 0.95rem; color: #8b949e; }
+        .info span { color: #3fb950; }
+        .links { margin-top: 1.5rem; }
+        .links a { color: #58a6ff; text-decoration: none; margin: 0 1rem; }
+        .version { margin-top: 2rem; font-size: 0.8rem; color: #484f58; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 GitOps Pipeline</h1>
+        <p style="color:#8b949e; margin-bottom:1.5rem;">
+            Infrastructure managed entirely through Git
+        </p>
+        <span class="badge">✅ Deployed via GitOps</span>
+        <span class="badge">✅ Docker Compose</span>
+        <span class="badge">✅ GitHub Actions</span>
+        <div class="info">
+            <h2>📊 Pipeline Status</h2>
+            <p>Deployment Method: <span>GitOps — Git is source of truth</span></p>
+            <p>Container Runtime: <span>Docker 29.7.2</span></p>
+            <p>Web Server: <span>Nginx Alpine</span></p>
+            <p>CI/CD: <span>GitHub Actions</span></p>
+            <p>Git Hooks: <span>pre-commit, commit-msg, pre-push</span></p>
+        </div>
+        <div class="info">
+            <h2>🔧 Stack Components</h2>
+            <p>Web Application: <span>Nginx on port 80</span></p>
+            <p>Metrics: <span>Prometheus on port 9090</span></p>
+            <p>Dashboards: <span>Grafana on port 3000</span></p>
+            <p>Host Metrics: <span>Node Exporter on port 9100</span></p>
+        </div>
+        <div class="links">
+            <a href="http://10.245.99.201:9090">📈 Prometheus</a>
+            <a href="http://10.245.99.201:3000">📊 Grafana</a>
+            <a href="https://github.com/ghaithsoltani/linux-audit-gitops">📁 GitHub</a>
+        </div>
+        <p class="version">Ghaith — DevOps Engineering Portfolio</p>
+    </div>
+</body>
+</html>
