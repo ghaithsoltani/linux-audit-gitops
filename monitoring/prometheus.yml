@@ -1,7 +1,3 @@
-# monitoring/prometheus.yml
-# Prometheus scrape configuration
-# Prometheus pulls metrics from targets every 15 seconds
-
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -9,21 +5,13 @@ global:
     monitor: 'gitops-lab'
     environment: 'production'
 
-# Alerting configuration (we will add AlertManager later)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets: ['alertmanager:9093']
-
 scrape_configs:
-  # Prometheus monitors itself
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
         labels:
           service: 'prometheus'
 
-  # Nginx web application
   - job_name: 'nginx'
     static_configs:
       - targets: ['nginx:80']
@@ -31,8 +19,6 @@ scrape_configs:
           service: 'nginx'
     metrics_path: '/metrics'
 
-  # Node Exporter - host system metrics
-  # CPU, memory, disk, network statistics
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']

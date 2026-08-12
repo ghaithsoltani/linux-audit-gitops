@@ -1,24 +1,5 @@
-# docker-compose.yml
-# GitOps Pipeline Application Stack
-# Version: Production
-#
-# Services:
-#   nginx        - Web application server
-#   prometheus   - Metrics collection
-#   grafana      - Metrics visualization
-#   node-exporter - Host system metrics
-#
-# Usage:
-#   Start:   docker compose up -d
-#   Stop:    docker compose down
-#   Logs:    docker compose logs -f
-#   Status:  docker compose ps
-
 services:
 
-  # ==========================================================================
-  # NGINX — Web Application
-  # ==========================================================================
   nginx:
     build:
       context: ./app
@@ -39,11 +20,7 @@ services:
     labels:
       - "com.gitops.service=nginx"
       - "com.gitops.version=1.0.0"
-      - "com.gitops.managed-by=docker-compose"
 
-  # ==========================================================================
-  # PROMETHEUS — Metrics Collection
-  # ==========================================================================
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: gitops-prometheus
@@ -57,8 +34,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=7d'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
     networks:
       - gitops-network
@@ -70,9 +45,6 @@ services:
     labels:
       - "com.gitops.service=prometheus"
 
-  # ==========================================================================
-  # GRAFANA — Metrics Visualization
-  # ==========================================================================
   grafana:
     image: grafana/grafana:11.1.0
     container_name: gitops-grafana
@@ -100,9 +72,6 @@ services:
     labels:
       - "com.gitops.service=grafana"
 
-  # ==========================================================================
-  # NODE EXPORTER — Host System Metrics
-  # ==========================================================================
   node-exporter:
     image: prom/node-exporter:v1.8.2
     container_name: gitops-node-exporter
@@ -123,25 +92,13 @@ services:
     labels:
       - "com.gitops.service=node-exporter"
 
-# =============================================================================
-# NETWORKS
-# =============================================================================
 networks:
   gitops-network:
     driver: bridge
     name: gitops-network
-    labels:
-      - "com.gitops.managed-by=docker-compose"
 
-# =============================================================================
-# VOLUMES — Persistent data storage
-# =============================================================================
 volumes:
   prometheus-data:
     driver: local
-    labels:
-      - "com.gitops.service=prometheus"
   grafana-data:
     driver: local
-    labels:
-      - "com.gitops.service=grafana"
