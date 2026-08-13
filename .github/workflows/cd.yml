@@ -1,0 +1,249 @@
+# .github/workflows/cd.yml
+# CD Pipeline — deploys to production on every push to main
+#
+# Flow:
+#   1. Build Docker image
+#   2. Push to GitHub Container Registry (GHCR)
+#   3. SSH into VM
+#   4. Pull new image and deploy with Docker Compose
+#   5. Health check — verify deployment succeeded
+#   6. Auto-rollback if health check fails
+
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+# Only one deployment at a time
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/gitops-nginx
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # JOB 1 — Build and Push Docker image to GHCR
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Display image details
+        run: |
+          echo "Image tags: ${{ steps.meta.outputs.tags }}"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+
+  # ---------------------------------------------------------------------------
+  # JOB 2 — Deploy to VM
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment package
+        run: |
+          # Create a deployment directory with everything the VM needs
+          mkdir -p deploy_package
+          cp docker-compose.yml deploy_package/
+          cp -r monitoring/ deploy_package/
+
+          echo "Deployment package contents:"
+          ls -la deploy_package/
+
+      - name: Copy files to VM
+        run: |
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              -r deploy_package/* \
+              ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }}:~/gitops-app/
+
+      - name: Deploy application
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'DEPLOY'
+
+          set -e
+
+          echo "============================================"
+          echo "Starting deployment..."
+          echo "Time: $(date)"
+          echo "============================================"
+
+          cd ~/gitops-app
+
+          # Save current image tag for rollback
+          PREVIOUS_IMAGE=$(docker inspect gitops-nginx \
+            --format='{{index .Config.Image}}' 2>/dev/null || echo "none")
+          echo "Previous image: ${PREVIOUS_IMAGE}"
+
+          # Log in to GitHub Container Registry
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            docker login ghcr.io \
+            -u ${{ github.actor }} \
+            --password-stdin
+
+          # Pull latest image
+          echo "Pulling latest image..."
+          docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
+
+          # Update docker-compose to use registry image
+          export NGINX_IMAGE="ghcr.io/${{ env.IMAGE_NAME }}:latest"
+
+          # Deploy with Docker Compose
+          echo "Deploying with Docker Compose..."
+          docker compose up -d --pull always
+
+          echo "Deployment complete"
+          docker compose ps
+
+          DEPLOY
+
+      - name: Health check
+        run: |
+          echo "Waiting 15 seconds for containers to start..."
+          sleep 15
+
+          echo "Running health checks..."
+
+          # Check nginx health endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            http://${{ secrets.VM_HOST }}/health || echo "000")
+
+          echo "Nginx health check HTTP status: ${HTTP_CODE}"
+
+          if [[ "${HTTP_CODE}" == "200" ]]; then
+            echo "✅ Nginx is healthy"
+          else
+            echo "❌ Nginx health check failed with status: ${HTTP_CODE}"
+            exit 1
+          fi
+
+          # Check Prometheus
+          PROM_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            http://${{ secrets.VM_HOST }}:9090/-/healthy || echo "000")
+
+          echo "Prometheus health check HTTP status: ${PROM_CODE}"
+
+          if [[ "${PROM_CODE}" == "200" ]]; then
+            echo "✅ Prometheus is healthy"
+          else
+            echo "⚠️ Prometheus not responding (may still be starting)"
+          fi
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed — initiating rollback..."
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'ROLLBACK'
+
+          cd ~/gitops-app
+
+          echo "Rolling back to previous state..."
+          docker compose down
+
+          # Pull previous image if available
+          docker compose up -d
+
+          echo "Rollback complete"
+          docker compose ps
+
+          ROLLBACK
+
+          echo "⚠️ Rollback executed — check VM state manually"
+
+  # ---------------------------------------------------------------------------
+  # JOB 3 — Deployment Summary
+  # ---------------------------------------------------------------------------
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy]
+    if: always()
+
+    steps:
+      - name: Summary
+        run: |
+          echo "============================================"
+          echo "CD Pipeline Results"
+          echo "============================================"
+          echo "Build & Push: ${{ needs.build-and-push.result }}"
+          echo "Deploy:       ${{ needs.deploy.result }}"
+          echo "============================================"
+          echo "Repository:   ${{ github.repository }}"
+          echo "Commit:       ${{ github.sha }}"
+          echo "Actor:        ${{ github.actor }}"
+          echo "Time:         $(date -u)"
+          echo "============================================"
+
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "✅ DEPLOYMENT SUCCESSFUL"
+            echo "Application: http://${{ secrets.VM_HOST }}"
+            echo "Grafana:     http://${{ secrets.VM_HOST }}:3000"
+            echo "Prometheus:  http://${{ secrets.VM_HOST }}:9090"
+          else
+            echo "❌ DEPLOYMENT FAILED"
+            exit 1
+          fi

@@ -108,6 +108,11 @@ if [[ -n "${STAGED_FILES}" ]]; then
             continue
         fi
 
+        # Skip GitHub Actions workflows - reference secret names not values
+        if echo "${file}" | grep -qE "^\.github/workflows/"; then
+            continue
+        fi
+
         # Skip the hook files themselves - they contain pattern strings
         if echo "${file}" | grep -qE "^\.githooks/"; then
             continue
