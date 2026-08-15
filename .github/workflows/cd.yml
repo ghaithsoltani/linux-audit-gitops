@@ -77,12 +77,12 @@ jobs:
           echo "Starting deployment on $(hostname) at $(date)"
           mkdir -p ~/gitops-app
           cp docker-compose.yml ~/gitops-app/
+          cp docker-compose.prod.yml ~/gitops-app/
           cp -r monitoring/ ~/gitops-app/
           cd ~/gitops-app
-          NGINX_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
-            docker compose up -d
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
           echo "✅ Deployment complete"
-          docker compose ps
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
       - name: Health check
         run: |
@@ -103,9 +103,9 @@ jobs:
         run: |
           echo "❌ Rolling back..."
           cd ~/gitops-app || exit 0
-          docker compose down || true
-          docker compose up -d || true
-          docker compose ps
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d || true
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 
   deployment-summary:
     name: Deployment Summary
