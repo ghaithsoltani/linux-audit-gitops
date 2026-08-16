@@ -21,8 +21,8 @@ RUN addgroup -g 1001 -S appgroup && \
     touch /tmp/nginx.pid && \
     chown appuser:appgroup /tmp/nginx.pid
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
+    CMD curl -f http://127.0.0.1/health || exit 1
 
 EXPOSE 80
 
